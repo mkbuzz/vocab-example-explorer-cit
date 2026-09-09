@@ -61,9 +61,6 @@ main{padding:18px 14px 90px}
 .word-head{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
 .word-line{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .word-line h1{font-size:clamp(1.8rem,8vw,2.6rem);margin:0;line-height:1.1}
-.audio-icon{border:1px solid var(--border);background:#fff;border-radius:999px;min-width:40px;min-height:40px;padding:7px 10px;font-size:1.05rem;color:#384553;display:inline-flex;align-items:center;justify-content:center}
-.audio-icon:active{transform:scale(.97)}
-.audio-icon.speaking{background:var(--accent2);border-color:#b9c8f5;color:var(--accent)}
 .pos{display:inline-flex;align-items:center;border-radius:999px;background:#eef1f5;color:#5b6570;padding:3px 8px;font-weight:700;font-size:.82rem}
 .meaning-en{margin:12px 0 2px;font-size:1.03rem}
 .meaning-jp{margin:0;color:var(--muted)}
@@ -77,13 +74,6 @@ main{padding:18px 14px 90px}
 .reveal-hint{display:block;margin-top:7px;color:var(--muted);font-size:.78rem;font-weight:650}
 .examples-title{font-size:1.05rem;margin:18px 2px 4px}
 .examples-help{font-size:.82rem;color:var(--muted);margin:0 2px 10px}
-.audio-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin:10px 2px 12px}
-.audio-btn{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 10px;font-weight:700;color:#4a5663;min-height:40px}
-.audio-btn.primary{background:var(--accent2);border-color:#c8d3f4;color:#284fa8}
-.audio-btn:disabled{opacity:.42;cursor:default}
-.sentence-audio{border:1px solid var(--border);background:#fff;border-radius:999px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;font-size:.95rem;color:#41505e;flex:0 0 38px}
-.example.speaking{border-color:#9fb6ef;background:#f5f8ff;box-shadow:0 0 0 2px rgba(36,87,214,.08)}
-.example.speaking .sentence-btn{background:#f5f8ff}
 .sentence-btn strong{font-weight:800}
 .translation{display:none;border-top:1px solid var(--border);background:#fafbfc;padding:11px 12px;color:#39424c}
 .translation.show{display:block}
@@ -189,12 +179,6 @@ main{padding:18px 14px 90px}
     </div>
     <h2 class="examples-title">Example Sentences</h2>
     <p class="examples-help">Tap any sentence to show its Japanese translation.</p>
-    <div id="audioToolbar" class="audio-toolbar" aria-label="Read aloud controls">
-      <button id="readEnglish" class="audio-btn primary">▶ English</button>
-      <button id="readBilingual" class="audio-btn">▶ English + 日本語</button>
-      <button id="stopAudio" class="audio-btn" disabled>■ Stop</button>
-      <button id="speedBtn" class="audio-btn">Speed: Normal</button>
-    </div>
     <section id="examplesWrap"></section>
     <div class="footer-note">Swipe left/right or use the arrows to move between vocabulary cards.</div>
   </main>
@@ -340,7 +324,6 @@ function renderUnit(){
 }
 
 function renderCard(id){
-  stopSpeech(false);
   const item=itemById(id) || ITEMS[0];
   state.viewed[item.id]=true; state.lastWord=item.id; saveState();
   show("cardView");
@@ -349,7 +332,7 @@ function renderCard(id){
   document.getElementById("backBtn").onclick=()=>navigateTo("#unit-4");
   const wordMark=(state.wordMarks||{})[item.id]||"";
   document.getElementById("wordHead").innerHTML=
-    `<div class="word-line"><h1>${item.term}</h1><span class="pos">${item.pos}</span><button id="wordAudio" class="audio-icon" aria-label="Read ${escapeAttr(item.term)} aloud" title="Read aloud">🔊</button></div>
+    `<div class="word-line"><h1>${item.term}</h1><span class="pos">${item.pos}</span></div>
      <p class="meaning-en">${item.enMeaning}</p>
      <p class="meaning-jp">${item.jpMeaning}</p>`;
 
@@ -381,114 +364,24 @@ function renderCard(id){
   exs.forEach((e,i)=>{
     const box=document.createElement("article");
     box.className="example";
-    box.dataset.exampleIndex=String(i);
     box.innerHTML=
-      `<div class="example-top"><span>${e.reading?'<span class="reading-badge">Passage</span>':''}</span><button class="sentence-audio" aria-label="Read this English sentence aloud" title="Read sentence aloud">🔊</button></div>
+      `<div class="example-top">${e.reading?'<span class="reading-badge">Passage</span>':''}</div>
        <button class="sentence-btn" aria-expanded="false">${e.en}<span class="reveal-hint">和訳▽</span></button>
        <div class="translation">${e.jp}</div>`;
-    const sbtn=box.querySelector(".sentence-btn"), tr=box.querySelector(".translation"), hint=box.querySelector(".reveal-hint"), audioBtn=box.querySelector(".sentence-audio");
+    const sbtn=box.querySelector(".sentence-btn"), tr=box.querySelector(".translation"), hint=box.querySelector(".reveal-hint");
     sbtn.addEventListener("click",()=>{
       const on=tr.classList.toggle("show");
       sbtn.setAttribute("aria-expanded",String(on));
       hint.textContent=on?"和訳△":"和訳▽";
     });
-    audioBtn.addEventListener("click",ev=>{
-      ev.stopPropagation();
-      speakEntries([{text:stripHtml(e.en),lang:"en",box}]);
-    });
     wrap.appendChild(box);
   });
-  const wordAudio=document.getElementById("wordAudio");
-  wordAudio.onclick=()=>speakEntries([{text:item.term,lang:"en",wordButton:wordAudio}]);
-  const englishEntries=exs.map((e,i)=>({text:stripHtml(e.en),lang:"en",box:wrap.querySelector(`[data-example-index="${i}"]`)}));
-  const bilingualEntries=[];
-  exs.forEach((e,i)=>{
-    const box=wrap.querySelector(`[data-example-index="${i}"]`);
-    bilingualEntries.push({text:stripHtml(e.en),lang:"en",box});
-    bilingualEntries.push({text:e.jp,lang:"ja",box});
-  });
-  document.getElementById("readEnglish").onclick=()=>speakEntries(englishEntries);
-  document.getElementById("readBilingual").onclick=()=>speakEntries(bilingualEntries);
-  document.getElementById("stopAudio").onclick=()=>stopSpeech();
-  updateAudioSupport();
-
   const prev=document.getElementById("prevWord"), next=document.getElementById("nextWord");
   prev.disabled=idx<=0; next.disabled=idx>=ordered.length-1;
   prev.onclick=()=>{if(idx>0) navigateTo("#word-"+encodeURIComponent(ordered[idx-1].id))};
   next.onclick=()=>{if(idx<ordered.length-1) navigateTo("#word-"+encodeURIComponent(ordered[idx+1].id))};
   updateProgress();
   window.scrollTo(0,0);
-}
-
-function escapeAttr(text){
-  return String(text).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-}
-function stripHtml(html){
-  const d=document.createElement("div"); d.innerHTML=html; return d.textContent||d.innerText||"";
-}
-let speechRate=1;
-let speechRun=0;
-let voices=[];
-function refreshVoices(){
-  if("speechSynthesis" in window) voices=window.speechSynthesis.getVoices()||[];
-}
-function pickVoice(lang){
-  const prefix=lang==="ja"?"ja":"en";
-  return voices.find(v=>v.lang&&v.lang.toLowerCase().startsWith(prefix))||null;
-}
-function clearSpeakingUI(){
-  document.querySelectorAll(".example.speaking").forEach(x=>x.classList.remove("speaking"));
-  document.querySelectorAll(".audio-icon.speaking").forEach(x=>x.classList.remove("speaking"));
-}
-function setStopEnabled(on){
-  const b=document.getElementById("stopAudio"); if(b) b.disabled=!on;
-}
-function stopSpeech(showToast=true){
-  speechRun++;
-  if("speechSynthesis" in window){ try{window.speechSynthesis.cancel()}catch(e){} }
-  clearSpeakingUI(); setStopEnabled(false);
-  if(showToast) toast("Playback stopped");
-}
-function speakEntries(entries){
-  if(!("speechSynthesis" in window)){ toast("Read aloud is not supported in this browser"); return; }
-  entries=(entries||[]).filter(x=>x&&x.text&&String(x.text).trim());
-  if(!entries.length) return;
-  stopSpeech(false); refreshVoices();
-  const run=++speechRun;
-  setStopEnabled(true);
-  let remaining=entries.length;
-  entries.forEach((entry,idx)=>{
-    const u=new SpeechSynthesisUtterance(String(entry.text));
-    u.lang=entry.lang==="ja"?"ja-JP":"en-US";
-    u.rate=speechRate;
-    const voice=pickVoice(entry.lang); if(voice) u.voice=voice;
-    u.onstart=()=>{
-      if(run!==speechRun) return;
-      clearSpeakingUI();
-      if(entry.box) entry.box.classList.add("speaking");
-      if(entry.wordButton) entry.wordButton.classList.add("speaking");
-      if(idx>0 && entry.box && entry.box!==entries[idx-1]?.box){
-        entry.box.scrollIntoView({behavior:"smooth",block:"center"});
-      }
-    };
-    const done=()=>{
-      if(run!==speechRun) return;
-      remaining--;
-      if(remaining<=0){ clearSpeakingUI(); setStopEnabled(false); }
-    };
-    u.onend=done; u.onerror=done;
-    window.speechSynthesis.speak(u);
-  });
-}
-function updateAudioSupport(){
-  const ok="speechSynthesis" in window;
-  ["readEnglish","readBilingual","speedBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=!ok});
-  document.querySelectorAll(".sentence-audio,.audio-icon").forEach(b=>b.disabled=!ok);
-}
-function toggleSpeed(){
-  speechRate=speechRate===1?.82:1;
-  const b=document.getElementById("speedBtn"); if(b)b.textContent=speechRate===1?"Speed: Normal":"Speed: Slow";
-  stopSpeech(false);
 }
 
 function toast(msg){
@@ -498,7 +391,6 @@ function toast(msg){
 
 function route(){
   const h=decodeURIComponent(location.hash||"#home");
-  if(!h.startsWith("#word-")) stopSpeech(false);
   if(h==="#home"||h==="#"){ show("homeView"); updateProgress(); return; }
   if(h==="#unit-4"){ renderUnit(); return; }
   if(h.startsWith("#word-")){ renderCard(h.slice(6)); return; }
@@ -520,11 +412,6 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
     state=defaultState(); saveState(); updateProgress(); toast("Progress reset");
   }
 });
-document.getElementById("speedBtn").addEventListener("click",toggleSpeed);
-if("speechSynthesis" in window){
-  refreshVoices();
-  if("onvoiceschanged" in window.speechSynthesis) window.speechSynthesis.addEventListener("voiceschanged",refreshVoices);
-}
 
 let touchStart=null;
 document.getElementById("cardView").addEventListener("touchstart",e=>{
