@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/scripts/apply_placeholder_chips.py'
+      - '.github/workflows/apply-placeholder-chips.yml'
   workflow_dispatch:
 
 permissions:
